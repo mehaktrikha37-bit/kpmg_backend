@@ -15,6 +15,11 @@ class DatabaseSeeder extends Seeder
             BranchSeeder::class,
             EmployeeSeeder::class,
             CustomerSeeder::class,
+            DeviceSeeder::class,
+            ServiceReportSeeder::class,
+            StockItemSeeder::class,
+            TransferSeeder::class,
+            SettingsSeeder::class,
         ]);
     }
 }
