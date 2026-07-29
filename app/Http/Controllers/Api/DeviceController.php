@@ -22,7 +22,10 @@ class DeviceController extends Controller
         if ($user->role === 'branch_manager') {
             $query->where('current_branch_id', $user->branch_id);
         } elseif ($user->role === 'employee') {
-            $query->where('assigned_technician_id', $user->id);
+            $query->where(function ($q) use ($user) {
+                $q->where('assigned_technician_id', $user->id)
+                  ->orWhere('created_by', $user->id);
+            });
         }
 
         if ($request->has('branch_id') && $user->role === 'super_admin') {
@@ -84,63 +87,74 @@ class DeviceController extends Controller
 
     public function store(StoreDeviceRequest $request)
     {
-        $data = $request->validated();
-        
-        $customer = Customer::findOrFail($data['customer_id']);
-        $branch = Branch::findOrFail($data['branch_id']);
-        
-        $data['job_number'] = JobNumberService::generate();
-        $data['receipt_number'] = JobNumberService::generateReceipt();
-        $data['customer_name'] = $customer->name;
-        $data['customer_mobile'] = $customer->mobile;
-        $data['current_branch_id'] = $branch->id;
-        $data['current_branch_name'] = $branch->name;
-        $data['status'] = 'received';
-        $data['received_at'] = now();
-        $data['created_by'] = $request->user()->id;
+        try {
+            $data = $request->validated();
+            
+            $customer = Customer::findOrFail($data['customer_id']);
+            $branch = Branch::findOrFail($data['branch_id']);
+            
+            $data['job_number'] = JobNumberService::generate();
+            $data['receipt_number'] = JobNumberService::generateReceipt();
+            $data['customer_name'] = $customer->name;
+            $data['customer_mobile'] = $customer->mobile;
+            $data['current_branch_id'] = $branch->id;
+            $data['current_branch_name'] = $branch->name;
+            $data['status'] = 'received';
+            $data['received_at'] = now();
+            $data['created_by'] = $request->user()->id;
 
-        $device = Device::create($data);
-        
-        $customer->increment('total_devices');
-        $branch->increment('active_repairs');
+            $device = Device::create($data);
+            
+            $customer->increment('total_devices');
+            $branch->increment('active_repairs');
 
-        // Handle images
-        if (isset($data['device_images']) && is_array($data['device_images'])) {
-            foreach ($data['device_images'] as $imgBase64) {
-                // In a real app, decode base64 and save to storage. Storing base64 string for now.
-                $device->images()->create([
-                    'type' => 'device',
-                    'image_path' => $imgBase64
-                ]);
+            // Handle images
+            if (isset($data['device_images']) && is_array($data['device_images'])) {
+                foreach ($data['device_images'] as $imgBase64) {
+                    // In a real app, decode base64 and save to storage. Storing base64 string for now.
+                    $device->images()->create([
+                        'type' => 'device',
+                        'image_path' => $imgBase64
+                    ]);
+                }
             }
-        }
-        
-        if (isset($data['condition_images']) && is_array($data['condition_images'])) {
-            foreach ($data['condition_images'] as $imgBase64) {
-                $device->images()->create([
-                    'type' => 'condition',
-                    'image_path' => $imgBase64
-                ]);
+            
+            if (isset($data['condition_images']) && is_array($data['condition_images'])) {
+                foreach ($data['condition_images'] as $imgBase64) {
+                    $device->images()->create([
+                        'type' => 'condition',
+                        'image_path' => $imgBase64
+                    ]);
+                }
             }
-        }
-        
-        // Initial status history
-        $device->statusHistory()->create([
-            'status' => 'received',
-            'description' => 'Device received at branch',
-            'performed_by' => $request->user()->id,
-            'performed_by_name' => $request->user()->name,
-            'branch_id' => $branch->id,
-            'branch_name' => $branch->name,
-        ]);
-        
-        AuditService::log('create', 'device', $device->id, Device::class, "Job Number: {$device->job_number}");
+            
+            // Initial status history
+            $device->statusHistory()->create([
+                'status' => 'received',
+                'description' => 'Device received at branch',
+                'performed_by' => $request->user()->id,
+                'performed_by_name' => $request->user()->name,
+                'branch_id' => $branch->id,
+                'branch_name' => $branch->name,
+            ]);
+            
+            AuditService::log('create', 'device', $device->id, Device::class, "Job Number: {$device->job_number}");
 
-        return response()->json([
-            'success' => true,
-            'data' => $device->load('images'),
-            'message' => 'Job created successfully',
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'data' => $device->load('images'),
+                'message' => 'Job created successfully',
+            ], 201);
+        } catch (\Exception $e) {
+            \Log::error('Device store error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create job: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function update(StoreDeviceRequest $request, $id)
