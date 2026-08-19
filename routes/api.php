@@ -89,3 +89,53 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/settings', [SettingController::class, 'index']);
     Route::put('/settings', [SettingController::class, 'update'])->middleware('role:super_admin');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Lead Management Module Routes  (isolated — no relation to mobile app)
+|--------------------------------------------------------------------------
+| All Lead routes are prefixed /api/lead/
+| Auth: Sanctum bearer token issued to LeadUser model (lead_users table)
+| Guard: auth:sanctum resolves LeadUser via the 'lead_users' provider
+*/
+
+use App\Http\Controllers\Api\Lead\LeadAuthController;
+use App\Http\Controllers\Api\Lead\LeadCustomerController;
+use App\Http\Controllers\Api\Lead\LeadExecutiveController;
+
+Route::prefix('lead')->group(function () {
+
+    // Public — Login
+    Route::post('/login', [LeadAuthController::class, 'login']);
+
+    // Protected — requires valid Sanctum token belonging to a LeadUser
+    Route::middleware('auth:sanctum')->group(function () {
+
+        // Auth
+        Route::post('/logout',          [LeadAuthController::class, 'logout']);
+        Route::post('/change-password', [LeadAuthController::class, 'changePassword']);
+
+        // Dashboard
+        Route::get('/dashboard-stats',  [LeadCustomerController::class, 'dashboardStats']);
+
+        // Executives (admin only — enforced inside controller)
+        Route::get('/executives',                    [LeadExecutiveController::class, 'index']);
+        Route::post('/executives',                   [LeadExecutiveController::class, 'store']);
+        Route::post('/executives/reset-password',    [LeadExecutiveController::class, 'resetPassword']);
+        Route::get('/executives/{id}',               [LeadExecutiveController::class, 'show']);
+        Route::put('/executives/{id}',               [LeadExecutiveController::class, 'update']);
+        Route::delete('/executives/{id}',            [LeadExecutiveController::class, 'destroy']);
+
+        // Customers
+        Route::get('/customers/search',              [LeadCustomerController::class, 'search']);
+        Route::get('/customers/export',              [LeadCustomerController::class, 'index'])->name('lead.customers.export');
+        Route::get('/customers',                     [LeadCustomerController::class, 'index']);
+        Route::post('/customers',                    [LeadCustomerController::class, 'store']);
+        Route::get('/customers/{id}',                [LeadCustomerController::class, 'show']);
+        Route::put('/customers/{id}',                [LeadCustomerController::class, 'update']);
+        Route::delete('/customers/{id}',             [LeadCustomerController::class, 'destroy']);
+        Route::post('/customers/{id}/follow-up',     [LeadCustomerController::class, 'addFollowup']);
+        Route::post('/customers/{id}/timeline',      [LeadCustomerController::class, 'addTimelineEvent']);
+    });
+});
+

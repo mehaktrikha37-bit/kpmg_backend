@@ -1,6 +1,7 @@
 <?php
 
-use App\Models\Employee;
+use App\Models\User;
+use App\Models\LeadUser;
 
 return [
 
@@ -39,8 +40,14 @@ return [
 
     'guards' => [
         'web' => [
-            'driver' => 'session',
+            'driver'   => 'session',
             'provider' => 'users',
+        ],
+
+        // ── Lead Module guard (Sanctum token for LeadUser) ───────────────
+        'lead' => [
+            'driver'   => 'sanctum',
+            'provider' => 'lead_users',
         ],
     ],
 
@@ -64,13 +71,14 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', User::class),
+            'model'  => env('AUTH_MODEL', User::class),
         ],
 
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        // ── Lead Module provider ─────────────────────────────────────────
+        'lead_users' => [
+            'driver' => 'eloquent',
+            'model'  => LeadUser::class,
+        ],
     ],
 
     /*

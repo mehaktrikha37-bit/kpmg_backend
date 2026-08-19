@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
             StockItemSeeder::class,
             TransferSeeder::class,
             SettingsSeeder::class,
+            // ── Lead Management Module ──
+            LeadDatabaseSeeder::class,
         ]);
     }
 }
