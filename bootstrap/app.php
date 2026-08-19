@@ -16,7 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
 
-        // CORS: allow the Vite frontend to talk to this API
+        // CORS: allow Android APK (kpmg_lead_front) and Vite frontend (kpmg_techno) to reach this API
+        $middleware->use([
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
